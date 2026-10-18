@@ -1,0 +1,4 @@
+rms.db
+receipts/
+__pycache__/
+*.pyc
