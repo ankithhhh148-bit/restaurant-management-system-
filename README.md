@@ -1,84 +1,53 @@
 # Restaurant Management System
 
-A command-line Restaurant Management System built with **Python** and **SQLite**. It handles the daily work of a restaurant in one place: menu, tables, orders, billing, reservations, reports, and staff accounts.
+A restaurant management application built with Python, SQLite, and the standard library. Use the web storefront for customer ordering or the management screens for restaurant operations.
 
 ## Features
 
-- **Login with roles:** admin and staff accounts, with salted password hashing
-- **Menu management:** add, update, delete items and mark them available or unavailable
-- **Table management:** track tables as Free, Occupied, or Reserved
-- **Orders:** open an order per table, add or remove items, cancel orders
-- **Billing:** discount, 5% GST, Cash / Card / UPI payment, and a printed receipt saved to `receipts/`
-- **Reservations:** automatically assigns a suitable table and prevents double booking of the same time slot
-- **Reports (admin):** today's sales, sales by date, top-selling items, sales by payment method
-- **User management (admin):** add users, change passwords, delete users
+- Customer storefront with menu search, categories, table selection, and ordering
+- Admin and staff login; customers can order without signing in
+- Menu, table, order, billing, GST, and reservation management
+- Admin reports, bill export, and user management
+- Admin-editable storefront template: restaurant name, logo, banner copy and image, menu photos, and theme colors
+- SQLite database created and seeded automatically on first run
 
-## Tech Stack
+## Run the website
 
-- Python 3 (standard library only, nothing to install)
-- SQLite (`sqlite3`)
-
-## How to Run
+On Windows, double-click `run_web.bat`, or run:
 
 ```bash
-git clone <your-repo-link>
-cd <repo-folder>
+python rms_server.py
+```
+
+Open [http://localhost:8000](http://localhost:8000). If port 8000 is occupied, set `RMS_PORT` before starting the server:
+
+```powershell
+$env:RMS_PORT = "8001"
+python rms_server.py
+```
+
+To allow devices on the local network to connect, set `RMS_HOST` to `0.0.0.0` and use the computer's LAN IP address.
+
+## Management login
+
+| Role | Username | Password |
+|---|---|---|
+| Admin | `admin` | `admin123` |
+| Staff | `staff` | `staff123` |
+
+Customers see the menu and ordering experience by default. Use the **Admin / Staff** button to sign in to management. Change demo passwords before using the application outside a local development environment.
+
+Admins can edit storefront branding and appearance in **Settings → Customer storefront template**. Storefront settings are kept in the local `rms_storefront.json`; uploaded images are kept in `static/uploads/`. Both are excluded from Git so local database and storefront data are not published.
+
+## Command-line application
+
+The original command-line interface remains available:
+
+```bash
 python restaurant_management_system.py
 ```
 
-The database (`rms.db`) is created automatically on the first run and loaded with a sample menu.
+## Tech stack
 
-## Demo Logins
-
-| Role  | Username | Password   |
-|-------|----------|------------|
-| Admin | admin    | admin123   |
-| Staff | staff    | staff123   |
-
-Admins have full access. Staff can take orders, create bills, and manage reservations.
-
-## Sample Menu
-
-| Category | Items |
-|----------|-------|
-| Coffee   | Hot Coffee, Cold Coffee |
-| Pasta    | Cheese Pasta, Normal Pasta |
-| Burger   | Veg Burger, Chicken Burger |
-| Chicken  | Chilli Chicken (Half/Full), Tandoori Chicken (Half/Full) |
-
-## Database Design
-
-`users` · `menu` · `tables` · `orders` · `order_items` · `bills` · `reservations`
-
-Orders link to tables, order items link to menu items, and bills link to orders, using foreign keys.
-
-## Sample Receipt
-
-```
-============================================
-              THE GOLDEN SPOON
-                Tax Invoice
-============================================
-Item                   Qty   Rate      Amt
---------------------------------------------
-Hot Coffee               2    100   200.00
-Chicken Burger           1    180   180.00
---------------------------------------------
-Subtotal                              380.00
-GST @ 5%                               19.00
-============================================
-TOTAL                                 399.00
-```
-
-## Future Improvements
-
-- Desktop (Tkinter) or web (Flask) interface
-- Kitchen order display
-- Inventory tracking
-- PDF receipts
-
-## Author
-
-**Ankit**, B.Tech Information Technology student
-
-Feedback and suggestions are welcome.
+- Python 3 (standard library only)
+- SQLite (`sqlite3`)

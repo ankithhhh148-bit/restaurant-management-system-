@@ -1,0 +1,9 @@
+rms.db
+receipts/
+__pycache__/
+*.pyc
+rms_storefront.json
+static/uploads/
+.venv/
+venv/
+.vscode/

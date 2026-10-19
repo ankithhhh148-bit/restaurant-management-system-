@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<title>Restaurant Management System</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("rms-theme")||"light"}catch(e){}</script>
+</head>
+<body>
+<noscript><p style="padding:24px">Please enable JavaScript to use this app.</p></noscript>
+<div id="login" class="login" hidden>
+  <section class="login-art">
+    <img class="logo" src="/logo.svg" alt="">
+    <h1>Restaurant<br>management.</h1>
+    <p>Secure access for restaurant administrators and staff.</p>
+    <ul><li>Real-time table status</li><li>GST-ready invoices</li><li>Role-based access</li></ul>
+  </section>
+  <section class="login-form">
+    <div class="card">
+      <button id="admin-close" class="admin-back" type="button">← Back to menu</button>
+      <h2>Sign in</h2>
+      <p class="muted">Administrator and staff access</p>
+      <label for="u">Username</label>
+      <input id="u" placeholder="e.g. admin" autocomplete="username" autofocus>
+      <label for="p">Password</label>
+      <div class="pwwrap"><input id="p" type="password" placeholder="••••••••" autocomplete="current-password">
+        <button type="button" class="eye" data-eye aria-label="Show password">Show</button></div>
+      <p id="caps" class="warnline" hidden>Caps Lock is on</p>
+      <button id="go" class="primary block">Sign in</button>
+      <p class="hint">Demo: admin / admin123 &nbsp;·&nbsp; staff / staff123</p>
+    </div>
+  </section>
+</div>
+
+<div id="app" class="shell" hidden>
+  <aside class="side">
+    <div class="brandrow"><img class="logo sm" src="/logo.svg" alt=""><h1 id="brand">Restaurant</h1></div>
+    <nav id="nav" aria-label="Main"></nav>
+    <div class="userbox">
+      <div class="avatar" id="avatar">A</div>
+      <div><b id="uname">—</b><small id="urole" class="muted">—</small></div>
+      <div class="ulinks"><button class="ghost" data-pw>Password</button><button id="logout" class="ghost">Sign out</button></div>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <h2 id="title">Orders</h2>
+      <div class="topright"><span id="date" class="muted"></span><span id="clock" class="clock"></span>
+        <button id="admin-access" class="admin-access" hidden>Admin / Staff</button>
+        <button class="iconbtn" data-theme-btn id="themebtn" title="Switch light / dark theme" aria-label="Switch theme"></button></div>
+    </header>
+    <main id="view"></main>
+  </div>
+</div>
+
+<div id="modal" class="modal" hidden><div class="box" id="box" role="dialog" aria-modal="true"></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="/app.js"></script>
+</body>
+</html>
