@@ -1,53 +1,33 @@
 # Restaurant Management System
 
-A restaurant management application built with Python, SQLite, and the standard library. Use the web storefront for customer ordering or the management screens for restaurant operations.
+A static restaurant management and ordering website built with HTML, CSS, and JavaScript. It includes the customer storefront and the management screens without a Python server or database.
 
 ## Features
 
 - Customer storefront with menu search, categories, table selection, and ordering
-- Admin and staff login; customers can order without signing in
+- Admin and staff demo sign-in
 - Menu, table, order, billing, GST, and reservation management
-- Admin reports, bill export, and user management
-- Admin-editable storefront template: restaurant name, logo, banner copy and image, menu photos, and theme colors
-- SQLite database created and seeded automatically on first run
+- Reports, bill history, CSV export, and user management
+- Storefront branding, banner, menu-photo, and theme customization
+- Browser-local data saved automatically in `localStorage`
 
 ## Run the website
 
-On Windows, double-click `run_web.bat`, or run:
+Open `static/index.html` in a browser, or use a static-file preview extension such as Live Server. No Python installation, server, or package install is required.
 
-```bash
-python rms_server.py
-```
+For Vercel, import this repository and deploy the `static` directory as the output directory. The included `vercel.json` configures that output.
 
-Open [http://localhost:8000](http://localhost:8000). If port 8000 is occupied, set `RMS_PORT` before starting the server:
-
-```powershell
-$env:RMS_PORT = "8001"
-python rms_server.py
-```
-
-To allow devices on the local network to connect, set `RMS_HOST` to `0.0.0.0` and use the computer's LAN IP address.
-
-## Management login
+## Demo accounts
 
 | Role | Username | Password |
 |---|---|---|
 | Admin | `admin` | `admin123` |
 | Staff | `staff` | `staff123` |
 
-Customers see the menu and ordering experience by default. Use the **Admin / Staff** button to sign in to management. Change demo passwords before using the application outside a local development environment.
+Customers can order without signing in. These demo accounts are not secure authentication.
 
-Admins can edit storefront branding and appearance in **Settings → Customer storefront template**. Storefront settings are kept in the local `rms_storefront.json`; uploaded images are kept in `static/uploads/`. Both are excluded from Git so local database and storefront data are not published.
+## Data and security limitations
 
-## Command-line application
+This is a browser-only version. Users, passwords, menu changes, orders, bills, reservations, images, and settings are stored in the current browser profile. They are not shared with other devices or browsers, and clearing browser site data deletes them. Browser storage is not a secure database; do not use real passwords or sensitive customer information. Use a JavaScript backend with a hosted database if shared access or secure authentication is needed.
 
-The original command-line interface remains available:
-
-```bash
-python restaurant_management_system.py
-```
-
-## Tech stack
-
-- Python 3 (standard library only)
-- SQLite (`sqlite3`)
+Data from the previous SQLite version is not imported. The static app starts with its demo data in browser storage; any existing `rms.db` file is left unchanged.

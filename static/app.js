@@ -43,12 +43,7 @@ const closeDialog = () => { $("#modal").hidden = true; };
 const modalOpen = () => !$("#modal").hidden;
 
 async function api(path, body) {
-  const o = {headers: {"Content-Type": "application/json", "X-Token": token || ""}};
-  if (body !== undefined) { o.method = "POST"; o.body = JSON.stringify(body); }
-  let r, d;
-  try { r = await fetch("/api" + path, o); d = await r.json(); } catch (e) { throw new Error("Cannot reach the server. Is it running?"); }
-  if (!r.ok) { if (r.status === 401 && token) { logout(); toast("Session expired. Please sign in again.", 1); } throw new Error(d.error || "Error"); }
-  return d;
+  return window.rmsLocal.request(path, body, {name: me, role});
 }
 const act = async (fn, ok) => {
   if (busy) return; busy = true;
@@ -62,10 +57,10 @@ setTheme(document.documentElement.dataset.theme || "light");
 
 /* ---------- session ---------- */
 function imageUrl(path) {
-  return typeof path === "string" && /^\/uploads\/[a-f0-9]{32}\.(?:jpg|png|webp)$/.test(path) ? path : "";
+  return window.rmsLocal.image(path);
 }
 function applyStorefront() {
-  const logo = imageUrl(storefront.logo_image) || "/logo.svg";
+  const logo = imageUrl(storefront.logo_image) || "logo.svg";
   document.querySelectorAll(".brandrow .logo").forEach(img => { img.src = logo; });
   if (role !== "customer") {
     for (const variable of ["--bg", "--surface", "--navy", "--brand", "--txt", "--store-heading", "--store-banner"]) {
@@ -106,21 +101,16 @@ async function login() {
   } catch (e) { toast(e.message, 1); } finally { busy = false; $("#go").disabled = false; }
 }
 async function openStorefront() {
-  const previous = store.get("rms-guest-token");
-  if (previous) {
-    try {
-      const r = await fetch("/api/me", {headers: {"X-Token": previous}});
-      if (r.ok) { token = previous; await enter(await r.json()); return; }
-      if (r.status !== 401) throw new Error("Could not restore your session.");
-    } catch (e) { toast(e.message || "Cannot reach the server. Is it running?", 1); return; }
-    store.set("rms-guest-token", null);
-  }
   try {
-    const r = await fetch("/api/public/session", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || "Could not start the storefront.");
-    token = d.token; store.set("rms-guest-token", token); await enter(d);
-  } catch (e) { toast(e.message || "Cannot reach the server. Is it running?", 1); }
+    let guest = localStorage.getItem("rms-browser-guest");
+    if (!guest) {
+      guest = "guest_" + crypto.randomUUID().replace(/-/g, "");
+      localStorage.setItem("rms-browser-guest", guest);
+    }
+    token = "local-guest";
+    store.set("rms-guest-token", token);
+    await enter({token, user: guest, role: "customer", gst_rate: 5});
+  } catch (e) { toast(e.message || "Could not open browser storage.", 1); }
 }
 function showAdminLogin() {
   if (role === "customer") store.set("rms-guest-token", token);
@@ -131,7 +121,6 @@ function showAdminLogin() {
 $("#admin-access").onclick = showAdminLogin;
 $("#admin-close").onclick = () => { $("#login").hidden = true; $("#p").value = ""; openStorefront(); };
 function logout() {
-  if (token) fetch("/api/logout", {method: "POST", headers: {"X-Token": token, "Content-Type": "application/json"}, body: "{}"}).catch(() => {});
   token = null; store.set("rms-token", null); store.set("rms-guest-token", null); selTable = null; closeDialog();
   $("#app").hidden = true; $("#login").hidden = true; $("#p").value = ""; openStorefront();
 }
@@ -162,7 +151,15 @@ function render() {
 const views = {
   async orders(v) {
     const customer = role === "customer";
-    const bannerColor = /^#[0-9a-f]{6}$/i.test(storefront.colors?.banner || "") ? storefront.colors.banner : "#d0ac49";
+    const bannerImage = imageUrl(storefront.banner_image);
+    const bannerKicker = storefront.banner_kicker || "GOOD FOOD, MADE FRESH";
+    const bannerTitle = storefront.banner_title || "What are you craving?";
+    const bannerSubtitle = storefront.banner_subtitle || "";
+    const bannerArtwork = !bannerImage && bannerKicker === "GOOD FOOD, MADE FRESH" &&
+      bannerTitle === "What are you craving?" &&
+      bannerSubtitle === "Choose your table, pick your favourites, and we’ll take care of the rest.";
+    const bannerBackground = bannerImage ? `background-image:url('${bannerImage}')` :
+      bannerArtwork ? "background-image:url('images/customer-banner.png?v=2')" : "";
     const [tables, menu, orders] = await Promise.all([api("/tables"), api("/menu"), api("/orders")]);
     const byTable = Object.fromEntries(orders.map(o => [o.table_id, o]));
     const cur = byTable[selTable];
@@ -178,7 +175,7 @@ const views = {
       const base = m.name.replace(/\s*\(.*?\)\s*/g, "").trim(), size = (m.name.match(/\((.*?)\)/) || [])[1], l = look(m);
       return `<article class="dish" data-name="${esc(m.name.toLowerCase())}">
         <div class="ph" style="background:${l.bg}"><span>${l.e}</span>
-          ${noImg.has(slug(base)) ? "" : `<img loading="lazy" src="${esc(imageUrl(storefront.menu_images?.[m.id]) || `/images/${slug(base)}.jpg`)}" alt="${esc(base)}" onerror="noImg.add('${slug(base)}');this.remove()">`}
+          ${noImg.has(slug(base)) ? "" : `<img loading="lazy" src="${esc(imageUrl(storefront.menu_images?.[m.id]) || `images/${slug(base)}.jpg`)}" alt="${esc(base)}" onerror="noImg.add('${slug(base)}');this.remove()">`}
           ${size ? `<em class="size">${esc(size)}</em>` : ""}
           <i class="vn ${isVeg(m) ? "veg" : "nonveg"}" title="${isVeg(m) ? "Vegetarian" : "Non-vegetarian"}"></i></div>
         <div class="info"><h4>${esc(base)}</h4><small>${esc(m.category)}</small>
@@ -205,8 +202,8 @@ const views = {
         <div class="acts"><button class="primary" data-bill>Generate bill</button><button class="danger" data-cancel>Cancel order</button></div>`}`;
 
     v.innerHTML = `
-      ${customer ? `<section class="customer-hero" style="${imageUrl(storefront.banner_image) ? `background-image:linear-gradient(90deg,${bannerColor}f2 0%,${bannerColor}bb 58%,${bannerColor}30 100%),url('${imageUrl(storefront.banner_image)}')` : ""}"><div><span class="eyebrow">${esc(storefront.banner_kicker || "GOOD FOOD, MADE FRESH")}</span><h2>${esc(storefront.banner_title || "What are you craving?")}</h2>
-        <p>${esc(storefront.banner_subtitle || "")}</p></div>${imageUrl(storefront.banner_image) ? "" : `<span class="hero-food" aria-hidden="true">🍗</span>`}</section>` : ""}
+      ${customer ? `<section class="customer-hero${bannerArtwork ? " banner-artwork" : ""}" ${bannerArtwork ? `role="img" aria-label="${esc([bannerKicker, bannerTitle, bannerSubtitle].filter(Boolean).join(". "))}"` : ""} style="${bannerBackground}"><div${bannerArtwork ? ' aria-hidden="true"' : ""}><span class="eyebrow">${esc(bannerKicker)}</span><h2>${esc(bannerTitle)}</h2>
+        <p>${esc(bannerSubtitle)}</p></div>${bannerImage || bannerArtwork ? "" : `<span class="hero-food" aria-hidden="true">🍗</span>`}</section>` : ""}
       ${customer ? "" : `<div class="kpis">
         <div class="kpi"><small>Tables</small><b>${tables.length}</b></div>
         <div class="kpi ok"><small>Available</small><b>${count("Free")}</b></div>
@@ -260,7 +257,7 @@ const views = {
         <div class="customer-menu-grid">${menu.map(m => {
           const base = m.name.replace(/\s*\(.*?\)\s*/g, "").trim(), size = (m.name.match(/\((.*?)\)/) || [])[1], l = look(m);
           return `<article class="dish"><div class="ph" style="background:${l.bg}"><span>${l.e}</span>
-            ${noImg.has(slug(base)) ? "" : `<img loading="lazy" src="${esc(imageUrl(storefront.menu_images?.[m.id]) || `/images/${slug(base)}.jpg`)}" alt="${esc(base)}" onerror="noImg.add('${slug(base)}');this.remove()">`}
+            ${noImg.has(slug(base)) ? "" : `<img loading="lazy" src="${esc(imageUrl(storefront.menu_images?.[m.id]) || `images/${slug(base)}.jpg`)}" alt="${esc(base)}" onerror="noImg.add('${slug(base)}');this.remove()">`}
             ${size ? `<em class="size">${esc(size)}</em>` : ""}<i class="vn ${isVeg(m) ? "veg" : "nonveg"}" title="${isVeg(m) ? "Vegetarian" : "Non-vegetarian"}"></i></div>
             <div class="info"><h3>${esc(base)}</h3><small>${esc(m.category)}</small><div class="buy"><b>${rs(m.price)}</b></div></div></article>`;
         }).join("") || `<div class="empty"><p>The menu is currently unavailable.</p></div>`}</div>`;
@@ -311,7 +308,7 @@ const views = {
     const [users, tables, menu] = await Promise.all([api("/users"), api("/tables"), api("/menu")]);
     const c = storefront.colors || {};
     const colorInput = (key, label) => `<label class="color-setting"><span>${label}</span><input type="color" id="store-color-${key}" value="${/^#[0-9a-f]{6}$/i.test(c[key] || "") ? c[key] : "#ffffff"}"></label>`;
-    const uploadTile = (kind, title, image) => `<div class="store-upload"><div class="store-thumb">${image ? `<img src="${esc(image)}" alt="">` : "Image preview"}</div>
+    const uploadTile = (kind, title, image, defaultImage = "") => `<div class="store-upload"><div class="store-thumb">${image || defaultImage ? `<img src="${esc(image || defaultImage)}" alt="">` : "Image preview"}</div>
       <b>${title}</b><label class="upload-button">Choose image<input type="file" accept="image/jpeg,image/png,image/webp" data-store-image="${kind}"></label>
       ${image ? `<button class="sm" data-store-clear="${kind}">Use default</button>` : ""}</div>`;
     v.innerHTML = `<div class="grid2">
@@ -323,14 +320,14 @@ const views = {
             <label for="store-banner-title">Banner heading</label><input id="store-banner-title" maxlength="100" value="${esc(storefront.banner_title || "")}">
             <label for="store-banner-subtitle">Banner message</label><textarea id="store-banner-subtitle" maxlength="240" rows="3">${esc(storefront.banner_subtitle || "")}</textarea></div>
           <div class="store-uploads">${uploadTile("logo", "Store logo", imageUrl(storefront.logo_image))}
-            ${uploadTile("banner", "Banner photo", imageUrl(storefront.banner_image))}</div>
+            ${uploadTile("banner", "Banner photo", imageUrl(storefront.banner_image), "images/customer-banner.png")}</div>
         </div>
         <h3 class="gap">Storefront colors</h3><div class="store-colors">${colorInput("background", "Page background")}${colorInput("surface", "Cards")}${colorInput("header", "Header")}${colorInput("banner", "Banner")}${colorInput("primary", "Buttons")}${colorInput("heading", "Headings")}${colorInput("text", "Body text")}</div>
         <button class="primary block" data-storefront-save>Save storefront design</button></section>
       <section class="panel storefront-editor full"><h3>Food photos</h3><p class="muted tiny">Upload a custom photo for each menu item. Items without a custom photo keep using the built-in dish image when available.</p>
         <div class="store-food-grid">${menu.map(m => {
           const base = m.name.replace(/\s*\(.*?\)\s*/g, "").trim();
-          const photo = imageUrl(storefront.menu_images?.[m.id]) || `/images/${slug(base)}.jpg`;
+          const photo = imageUrl(storefront.menu_images?.[m.id]) || `images/${slug(base)}.jpg`;
           return `<div class="store-food"><div class="store-thumb"><img src="${esc(photo)}" alt="" onerror="this.style.display='none'"></div><b>${esc(m.name)}</b>
             <label class="upload-button">Change photo<input type="file" accept="image/jpeg,image/png,image/webp" data-store-image="menu" data-menu-id="${m.id}"></label>
             ${storefront.menu_images?.[m.id] ? `<button class="sm" data-store-clear="menu" data-menu-id="${m.id}">Use default photo</button>` : ""}</div>`;
@@ -353,7 +350,7 @@ const views = {
         <table><tr><td class="muted">Name</td><td>${esc(info.restaurant)}</td></tr><tr><td class="muted">Address</td><td>${esc(info.address) || "—"}</td></tr>
         <tr><td class="muted">Phone</td><td>${esc(info.phone) || "—"}</td></tr><tr><td class="muted">GSTIN</td><td>${esc(info.gstin) || "—"}</td></tr>
         <tr><td class="muted">GST rate</td><td>${gstRate}%</td></tr></table>
-        <p class="muted tiny">To show address, phone and GSTIN on receipts, edit <b>ADDRESS</b>, <b>PHONE</b> and <b>GSTIN</b> at the top of <b>rms_server.py</b> and restart.</p></div>
+        <p class="muted tiny">Address, phone and GSTIN are not configured in this browser-only version.</p></div>
     </div>`;
   }
 };
@@ -431,9 +428,8 @@ document.addEventListener("keydown", e => {
 $("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeDialog(); });
 
 async function downloadCsv() {
-  const r = await fetch("/api/export/bills", {headers: {"X-Token": token}});
-  if (!r.ok) throw new Error("Export failed");
-  const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob());
+  const csv = await api("/export/bills");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv;charset=utf-8"}));
   a.download = "bills_" + todayStr().replace(/-/g, "") + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
