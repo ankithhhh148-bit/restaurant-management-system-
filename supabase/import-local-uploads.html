@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Import local restaurant photos</title>
+  <style>
+    body{font:16px/1.5 system-ui,sans-serif;max-width:760px;margin:48px auto;padding:0 20px;color:#202938}
+    h1{font-size:1.7rem}button{padding:10px 16px;font:inherit;cursor:pointer}
+    li{margin:8px 0}.muted{color:#5d6877}#status{white-space:pre-wrap;background:#f3f5f8;padding:14px;border-radius:8px}
+  </style>
+</head>
+<body>
+  <h1>Import your existing restaurant photos</h1>
+  <p>This one-time local tool copies the old ignored files from <code>static/uploads</code> into the configured Supabase Storage bucket and links them to the migrated storefront.</p>
+  <p class="muted">Open this page from the same local Live Server origin where you signed in to the restaurant app. First apply <code>schema.sql</code>, create and promote the admin account, and run <code>local-migration.sql</code>.</p>
+  <button id="import" type="button">Import existing photos</button>
+  <p id="status" role="status">Checking admin session…</p>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../static/supabase-config.js"></script>
+  <script src="../static/supabase-data.js"></script>
+  <script>
+    const photos = [
+      {file: "e8d2447504aa24e7205cf8a7a439583c.png", kind: "logo"},
+      {file: "00a218f05d891dca7166b85cdb309274.png", kind: "menu", menu_id: 12},
+      {file: "c55cfb4c63287015fe7bcc44ca1c2811.jpg", kind: "menu", menu_id: 3},
+      {file: "22890e67b6f3df5d1ef7c0407250e212.jpg", kind: "menu", menu_id: 4},
+      {file: "9a568094d62196d7c1ad8d66d33dce75.jpg", kind: "menu", menu_id: 11},
+      {file: "dfafd94163c2adc39ee481ffe1faeb53.jpg", kind: "menu", menu_id: 2}
+    ];
+    const button = document.querySelector("#import");
+    const status = document.querySelector("#status");
+    const write = message => { status.textContent += "\n" + message; };
+
+    async function checkAdmin() {
+      const {data, error} = await window.rmsSupabase.client.auth.getSession();
+      if (error) throw error;
+      if (!data.session) throw new Error("No Supabase session found. Sign in as the admin in the restaurant app first.");
+      const profile = await window.rmsSupabase.request("/me");
+      if (profile.role !== "admin") throw new Error("The signed-in account is not an administrator.");
+      status.textContent = `Signed in as ${profile.email}. Ready to import ${photos.length} photos.`;
+    }
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      status.textContent = "Starting photo import…";
+      try {
+        const profile = await window.rmsSupabase.request("/me");
+        if (profile.role !== "admin") throw new Error("The signed-in account is not an administrator.");
+        let storefront = await window.rmsSupabase.request("/storefront");
+        for (const photo of photos) {
+          const current = photo.kind === "menu"
+            ? storefront.menu_images?.[photo.menu_id]
+            : storefront[`${photo.kind}_image`];
+          if (current && !current.endsWith("/" + photo.file)) {
+            write(`Skipped ${photo.file}: it already has a cloud image.`);
+            continue;
+          }
+          const response = await fetch(`../static/uploads/${photo.file}`);
+          if (!response.ok) throw new Error(`Could not read local file ${photo.file} (${response.status}). Run this page with Live Server from the workspace.`);
+          const blob = await response.blob();
+          const data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result).split(",", 2)[1]);
+            reader.onerror = () => reject(new Error(`Could not read ${photo.file}`));
+            reader.readAsDataURL(blob);
+          });
+          const result = await window.rmsSupabase.uploadImage({
+            kind: photo.kind,
+            menu_id: photo.menu_id,
+            mime: blob.type,
+            data
+          });
+          storefront = result.storefront;
+          write(`Imported ${photo.file}.`);
+        }
+        write("Photo import finished. Reload the restaurant app to see the shared photos.");
+      } catch (error) {
+        write("Import stopped: " + error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    checkAdmin().catch(error => {
+      status.textContent = "Setup needed: " + error.message;
+    });
+  </script>
+</body>
+</html>

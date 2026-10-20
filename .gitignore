@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 rms_storefront.json
 static/uploads/
+supabase/local-migration.sql
 .venv/
 venv/
 .vscode/

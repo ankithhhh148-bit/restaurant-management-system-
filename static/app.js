@@ -1,10 +1,9 @@
 const $ = s => document.querySelector(s);
-const store = {get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
-               set: (k, v) => { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch (e) {} }};
 let token = null, role = null, me = "", info = {}, gstRate = 5;
 let storefront = {};
 const noImg = new Set();
 let tab = "orders", selTable = null, cat = "All", query = "", billDate = "", busy = false;
+let liveChannel = null, liveRefreshTimer = null, liveRefreshPending = false;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pl = (n, w) => n + " " + w + (n === 1 ? "" : "s");
 const rs = n => "₹" + Number(n || 0).toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -39,15 +38,41 @@ function toast(msg, err) {
 }
 function dialog(html, cls = "dlg") { $("#box").className = "box " + cls; $("#box").innerHTML = html; $("#modal").hidden = false;
   const f = $("#box").querySelector("input,select"); if (f && cls === "dlg") f.focus(); }
-const closeDialog = () => { $("#modal").hidden = true; };
+const closeDialog = () => { $("#modal").hidden = true; resumeLiveRefresh(); };
 const modalOpen = () => !$("#modal").hidden;
 
+function scheduleLiveRefresh() {
+  const active = document.activeElement;
+  if (busy || modalOpen() || (active && /INPUT|SELECT|TEXTAREA/.test(active.tagName))) {
+    liveRefreshPending = true;
+    return;
+  }
+  clearTimeout(liveRefreshTimer);
+  liveRefreshTimer = setTimeout(() => { liveRefreshPending = false; render(); }, 120);
+}
+function resumeLiveRefresh() {
+  if (liveRefreshPending) scheduleLiveRefresh();
+}
+async function subscribeLiveUpdates() {
+  if (liveChannel) await window.rmsSupabase.client.removeChannel(liveChannel);
+  const tables = ["menu", "dining_tables", "orders", "order_items", "bills", "reservations", "storefront"];
+  liveChannel = window.rmsSupabase.client.channel("restaurant-live-updates");
+  for (const table of tables) {
+    liveChannel.on("postgres_changes", {event: "*", schema: "public", table}, scheduleLiveRefresh);
+  }
+  liveChannel.subscribe(status => {
+    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      toast("Live updates are unavailable. Check Realtime is enabled for the restaurant tables.", 1);
+    }
+  });
+}
+
 async function api(path, body) {
-  return window.rmsLocal.request(path, body, {name: me, role});
+  return window.rmsSupabase.request(path, body);
 }
 const act = async (fn, ok) => {
   if (busy) return; busy = true;
-  try { await fn(); if (ok) toast(ok); await render(); } catch (e) { toast(e.message, 1); } finally { busy = false; }
+  try { await fn(); if (ok) toast(ok); await render(); } catch (e) { toast(e.message, 1); } finally { busy = false; resumeLiveRefresh(); }
 };
 
 /* ---------- theme ---------- */
@@ -57,7 +82,7 @@ setTheme(document.documentElement.dataset.theme || "light");
 
 /* ---------- session ---------- */
 function imageUrl(path) {
-  return window.rmsLocal.image(path);
+  return window.rmsSupabase.image(path);
 }
 function applyStorefront() {
   const logo = imageUrl(storefront.logo_image) || "logo.svg";
@@ -91,44 +116,46 @@ async function enter(d) {
   $("#avatar").textContent = d.user.charAt(0).toUpperCase();
   $("#date").textContent = new Date().toLocaleDateString("en-IN", {weekday: "short", day: "numeric", month: "short", year: "numeric"});
   document.title = storefront.restaurant + (role === "customer" ? " · Order online" : " · Management");
+  await subscribeLiveUpdates();
   tab = "orders"; billDate = todayStr(); render();
 }
 async function login() {
   if (busy) return; busy = true; $("#go").disabled = true;
   try {
-    const d = await api("/login", {username: $("#u").value.trim(), password: $("#p").value});
-    token = d.token; store.set("rms-token", token); store.set("rms-guest-token", null); await enter(d);
+    const d = await window.rmsSupabase.login($("#u").value.trim(), $("#p").value);
+    token = "supabase-session"; await enter(d);
   } catch (e) { toast(e.message, 1); } finally { busy = false; $("#go").disabled = false; }
 }
 async function openStorefront() {
   try {
-    let guest = localStorage.getItem("rms-browser-guest");
-    if (!guest) {
-      guest = "guest_" + crypto.randomUUID().replace(/-/g, "");
-      localStorage.setItem("rms-browser-guest", guest);
-    }
-    token = "local-guest";
-    store.set("rms-guest-token", token);
-    await enter({token, user: guest, role: "customer", gst_rate: 5});
-  } catch (e) { toast(e.message || "Could not open browser storage.", 1); }
+    const d = await window.rmsSupabase.openCustomerSession();
+    token = "supabase-session"; await enter(d);
+  } catch (e) {
+    $("#app").hidden = true; $("#login").hidden = false; $("#admin-close").hidden = true;
+    toast(e.message || "Could not connect to Supabase.", 1);
+  }
 }
 function showAdminLogin() {
-  if (role === "customer") store.set("rms-guest-token", token);
   token = null;
   $("#app").hidden = true; $("#login").hidden = false; $("#admin-close").hidden = false;
   $("#u").focus();
 }
 $("#admin-access").onclick = showAdminLogin;
 $("#admin-close").onclick = () => { $("#login").hidden = true; $("#p").value = ""; openStorefront(); };
-function logout() {
-  token = null; store.set("rms-token", null); store.set("rms-guest-token", null); selTable = null; closeDialog();
+async function logout() {
+  if (liveChannel) {
+    await window.rmsSupabase.client.removeChannel(liveChannel);
+    liveChannel = null;
+  }
+  try { await window.rmsSupabase.signOut(); }
+  catch (e) { toast(e.message, 1); return; }
+  token = null; selTable = null; closeDialog();
   $("#app").hidden = true; $("#login").hidden = true; $("#p").value = ""; openStorefront();
 }
 $("#go").onclick = login;
 $("#p").addEventListener("keydown", e => { if (e.key === "Enter") login(); $("#caps").hidden = !e.getModifierState("CapsLock"); });
 $("#u").addEventListener("keydown", e => { if (e.key === "Enter") $("#p").focus(); });
 $("#logout").onclick = logout;
-store.set("rms-token", null);
 openStorefront();
 
 setInterval(() => { const c = $("#clock"); if (c) c.textContent = new Date().toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit"}); }, 1000);
@@ -333,13 +360,10 @@ const views = {
             ${storefront.menu_images?.[m.id] ? `<button class="sm" data-store-clear="menu" data-menu-id="${m.id}">Use default photo</button>` : ""}</div>`;
         }).join("")}</div></section>
       <div class="panel"><h3>User accounts <span class="count">${users.length}</span></h3>
-        <table>${users.map(u => `<tr><td><b>${esc(u.username)}</b></td><td><span class="tag ${u.role === "admin" ? "" : "off2"}">${esc(u.role)}</span></td>
-          <td class="r">${u.username === me ? `<small class="muted">You</small>` : `<button class="sm danger" data-udel="${esc(u.username)}">Remove</button>`}</td></tr>`).join("")}</table>
-        <h3 class="gap">Add account</h3>
-        <div class="two"><div><label for="nu">Username</label><input id="nu" maxlength="20" autocomplete="off"></div>
-        <div><label for="nr">Role</label><select id="nr"><option value="staff">Staff</option><option value="customer">Customer</option><option value="admin">Admin</option></select></div></div>
-        <label for="np">Password (min 6)</label><input id="np" type="password" autocomplete="new-password">
-        <button class="primary block" data-uadd>Create account</button></div>
+        <div class="scroll"><table><tr><th>Account</th><th>Email</th><th>Role</th></tr>
+          ${users.map(u => `<tr><td><b>${esc(u.username)}</b>${u.username === me ? ` <small class="muted">(you)</small>` : ""}</td><td>${esc(u.email)}</td>
+          <td><span class="tag ${u.role === "admin" ? "" : "off2"}">${esc(u.role)}</span></td></tr>`).join("")}</table></div>
+        <p class="muted tiny">Create staff accounts in Supabase Dashboard → Authentication → Users. New accounts start as customers. To grant management access, run <code>update public.profiles set role = 'staff' where email = 'staff@example.com';</code> in the SQL Editor. Use <code>admin</code> only for trusted administrators.</p></div>
       <div class="panel"><h3>Tables <span class="count">${tables.length}</span></h3>
         <div class="chips">${tables.map(t => `<span class="chip">T${t.id} · ${t.seats} seats ${t.status === "Free" ? `<button class="x" data-tdel="${t.id}" title="Delete table" aria-label="Delete table ${t.id}">×</button>` : ""}</span>`).join("")}</div>
         <h3 class="gap">Add table</h3>
@@ -374,8 +398,8 @@ function receipt(b) {
 
 /* ---------- dialogs ---------- */
 function pwDialog() {
-  dialog(`<h3>Change password</h3><label for="po">Current password</label><input id="po" type="password" autocomplete="current-password">
-    <label for="pn">New password (min 6)</label><input id="pn" type="password" autocomplete="new-password">
+  dialog(`<h3>Change password</h3>
+    <label for="pn">New password (min 6)</label><input id="pn" type="password" autocomplete="new-password" minlength="6">
     <label for="pc">Confirm new password</label><input id="pc" type="password" autocomplete="new-password">
     <div class="acts"><button class="primary" data-pwsave>Update password</button><button data-close>Cancel</button></div>`);
 }
@@ -399,6 +423,7 @@ document.addEventListener("input", e => {
     document.querySelectorAll(".dish").forEach(d => d.hidden = !d.dataset.name.includes(query));
   } else if (e.target.id === "disc") calcTotals();
 });
+document.addEventListener("focusout", () => setTimeout(resumeLiveRefresh, 0));
 document.addEventListener("change", e => {
   if (e.target.id === "bd") { billDate = e.target.value; render(); }
   if (e.target.matches("[data-store-image]") && e.target.files?.[0]) {
@@ -412,7 +437,7 @@ document.addEventListener("change", e => {
         reader.onerror = () => reject(new Error("Could not read the selected image"));
         reader.readAsDataURL(file);
       });
-      const result = await api("/storefront/image", {
+      const result = await window.rmsSupabase.uploadImage({
         kind, menu_id: kind === "menu" ? input.dataset.menuId : undefined,
         mime: file.type, data: dataUrl.split(",", 2)[1]
       });
@@ -441,7 +466,7 @@ document.addEventListener("click", e => {
   else if (d.pw !== undefined) pwDialog();
   else if (d.pwsave !== undefined) act(async () => {
     if ($("#pn").value !== $("#pc").value) throw new Error("New passwords do not match");
-    await api("/password", {old: $("#po").value, new: $("#pn").value}); closeDialog();
+    await window.rmsSupabase.changePassword($("#pn").value); closeDialog();
   }, "Password updated");
   else if (d.tab) { tab = d.tab; render(); }
   else if (d.table) { selTable = +d.table; render(); }
@@ -463,8 +488,6 @@ document.addEventListener("click", e => {
   else if (d.msave) act(async () => { await api("/menu/update", {id: +d.msave, name: $("#en").value, category: $("#ec").value, price: $("#ep").value}); closeDialog(); }, "Item updated");
   else if (d.mdel) { if (confirm("Delete this menu item permanently?")) act(() => api("/menu/delete", {id: +d.mdel}), "Item deleted"); }
   else if (d.csv !== undefined) act(downloadCsv, "Export started");
-  else if (d.uadd !== undefined) act(() => api("/users/add", {username: $("#nu").value, password: $("#np").value, role: $("#nr").value}), "Account created");
-  else if (d.udel) { if (confirm("Remove account “" + d.udel + "”?")) act(() => api("/users/delete", {username: d.udel}), "Account removed"); }
   else if (d.tadd !== undefined) act(() => api("/tables/add", {seats: $("#ts").value}), "Table added");
   else if (d.tdel) { if (confirm("Delete table " + d.tdel + "?")) act(() => api("/tables/delete", {id: +d.tdel}), "Table deleted"); }
   else if (d.storefrontSave !== undefined) act(async () => {
@@ -480,9 +503,9 @@ document.addEventListener("click", e => {
     info.restaurant = storefront.restaurant; applyStorefront();
   }, "Storefront design saved");
   else if (d.storeClear) act(async () => {
-    storefront = await api("/storefront/image/remove", {
-      kind: d.storeClear, menu_id: d.storeClear === "menu" ? d.menuId : undefined
-    });
+    storefront = await window.rmsSupabase.removeImage(
+      d.storeClear, d.storeClear === "menu" ? d.menuId : undefined
+    );
     info.restaurant = storefront.restaurant; applyStorefront();
   }, "Default image restored");
 });

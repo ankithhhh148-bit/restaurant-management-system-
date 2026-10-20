@@ -18,22 +18,22 @@
   <section class="login-art">
     <img class="logo" src="logo.svg" alt="">
     <h1>Restaurant<br>management.</h1>
-    <p>Management access for this browser-only demo.</p>
-    <ul><li>Browser-local table status</li><li>GST-ready invoices</li><li>Demo role-based screens</li></ul>
+    <p>Sign in to manage the shared restaurant workspace.</p>
+    <ul><li>Shared menu and table status</li><li>GST-ready invoices</li><li>Secure staff access</li></ul>
   </section>
   <section class="login-form">
     <div class="card">
       <button id="admin-close" class="admin-back" type="button">← Back to menu</button>
       <h2>Sign in</h2>
       <p class="muted">Administrator and staff access</p>
-      <label for="u">Username</label>
-      <input id="u" placeholder="e.g. admin" autocomplete="username" autofocus>
+      <label for="u">Email</label>
+      <input id="u" type="email" placeholder="name@example.com" autocomplete="username" autofocus>
       <label for="p">Password</label>
       <div class="pwwrap"><input id="p" type="password" placeholder="••••••••" autocomplete="current-password">
         <button type="button" class="eye" data-eye aria-label="Show password">Show</button></div>
       <p id="caps" class="warnline" hidden>Caps Lock is on</p>
       <button id="go" class="primary block">Sign in</button>
-      <p class="hint">Demo: admin / admin123 &nbsp;·&nbsp; staff / staff123<br>Browser-only data is local to this device and is not secure.</p>
+      <p class="hint">Use the email and password for your Supabase staff account.</p>
     </div>
   </section>
 </div>
@@ -61,7 +61,9 @@
 
 <div id="modal" class="modal" hidden><div class="box" id="box" role="dialog" aria-modal="true"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
-<script src="local-data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="supabase-data.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
