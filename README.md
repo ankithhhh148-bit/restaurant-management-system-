@@ -1,37 +1,24 @@
 # Restaurant Management System
 
-A static restaurant management and ordering website built with HTML, CSS, and JavaScript. Supabase provides shared PostgreSQL data, authentication, and image storage; the website does not include a custom application server.
+A browser-only restaurant storefront built with HTML, CSS, and JavaScript. It has no server, database, secure authentication, or third-party runtime dependencies and is configured for static hosting on Vercel.
 
-## Features
+## Run locally
 
-- Customer storefront with menu search, categories, table selection, and ordering
-- Supabase Auth sign-in for restaurant staff
-- Menu, table, order, billing, GST, and reservation management
-- Reports, bill history, CSV export, and user management
-- Storefront branding, banner, menu-photo, and theme customization
-- Shared menu, orders, bills, reservations, settings, and photos in Supabase
-- Live updates across customer and staff browsers through Supabase Realtime
+Open `static/index.html` in a browser or serve the `static` folder with VS Code Live Server.
 
-## Run the website
+## Deploy to Vercel
 
-1. Open the Supabase SQL Editor for project `soviunagudymsrctrssi` and run [`supabase/schema.sql`](./supabase/schema.sql).
-2. In Supabase Authentication settings, enable anonymous sign-ins so customers can place orders.
-3. In Authentication → Users, create the administrator `ankitadmin@gmail.com` and set its password. Then run this SQL once to grant its role:
+Import the repository into Vercel. The included [`vercel.json`](./vercel.json) sets `static` as the output directory.
 
-   ```sql
-   update public.profiles set role = 'admin' where email = 'ankitadmin@gmail.com';
-   ```
+## Configure the demo menu
 
-4. For local testing, serve the `static` folder with VS Code Live Server. The project is configured to deploy its `static` folder on Vercel.
+Edit the `menu` array near the top of [`static/static-data.js`](./static/static-data.js) to set the restaurant's actual menu, categories, and prices before publishing. The included items and prices are examples.
 
-The frontend uses the project's public publishable key. Never put a Supabase `service_role` or secret key in frontend code. Database actions are routed through the security-definer `rms_request` function, which checks the signed-in profile role; row-level security is enabled on the tables and uploads. The schema adds shared tables to the Realtime publication with read policies that limit each role's event visibility.
+Demo orders, reservations, bills, menu edits, tables, storefront settings, images, and accounts are saved in the browser's local storage. They are not transmitted to the restaurant or shared between visitors.
 
-For Vercel, import this repository and deploy the `static` directory as the output directory. The included `vercel.json` configures that output.
+The **Admin / Staff** button opens the browser-only demo sign-in:
 
-## Existing local data and photos
+- Admin: `admin@restaurant.local` / `admin123`
+- Staff: `staff@restaurant.local` / `staff123`
 
-The previous SQLite database and uploaded photos were local, ignored files, so GitHub/Vercel could not include them. After applying the schema and creating the admin account, run the local-only `supabase/local-migration.sql` in Supabase SQL Editor to transfer the existing catalog, tables, orders, bills, reservations, and storefront settings. If that private file is unavailable, open [`supabase/export-local-migration.html`](./supabase/export-local-migration.html) from Live Server, select your local `rms.db` and `rms_storefront.json`, and generate it in the browser. The export contains reservation contact data; keep it private and do not commit it.
-
-While serving the workspace locally with Live Server, sign in as the admin in the app, then open [`supabase/import-local-uploads.html`](./supabase/import-local-uploads.html) from the same origin to copy the existing ignored photos from `static/uploads/` into Supabase Storage. This one-time importer is outside the Vercel output.
-
-Staff accounts are created in Supabase Authentication → Users. New accounts default to the customer role; an administrator can assign `staff` or `admin` in `public.profiles` from the SQL Editor. Customer storefront sessions use Supabase anonymous authentication. All shared changes and uploaded images are available to visitors using the same Supabase project.
+After signing in as admin, use **Settings** to manage the demo storefront, menu photos, accounts, tables, and admin email/password. Staff can manage orders, bills, reservations, and the menu. These credentials and role checks are only for trying the interface; browser storage can be inspected or changed by visitors, so they do not secure a public admin portal. A backend service is required for secure authentication and shared production data.

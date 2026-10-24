@@ -3,7 +3,7 @@ let token = null, role = null, me = "", info = {}, gstRate = 5;
 let storefront = {};
 const noImg = new Set();
 let tab = "orders", selTable = null, cat = "All", query = "", billDate = "", busy = false;
-let liveChannel = null, liveRefreshTimer = null, liveRefreshPending = false;
+let liveRefreshTimer = null, liveRefreshPending = false;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pl = (n, w) => n + " " + w + (n === 1 ? "" : "s");
 const rs = n => "₹" + Number(n || 0).toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -53,22 +53,8 @@ function scheduleLiveRefresh() {
 function resumeLiveRefresh() {
   if (liveRefreshPending) scheduleLiveRefresh();
 }
-async function subscribeLiveUpdates() {
-  if (liveChannel) await window.rmsSupabase.client.removeChannel(liveChannel);
-  const tables = ["menu", "dining_tables", "orders", "order_items", "bills", "reservations", "storefront"];
-  liveChannel = window.rmsSupabase.client.channel("restaurant-live-updates");
-  for (const table of tables) {
-    liveChannel.on("postgres_changes", {event: "*", schema: "public", table}, scheduleLiveRefresh);
-  }
-  liveChannel.subscribe(status => {
-    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-      toast("Live updates are unavailable. Check Realtime is enabled for the restaurant tables.", 1);
-    }
-  });
-}
-
 async function api(path, body) {
-  return window.rmsSupabase.request(path, body);
+  return window.rmsStatic.request(path, body);
 }
 const act = async (fn, ok) => {
   if (busy) return; busy = true;
@@ -82,7 +68,7 @@ setTheme(document.documentElement.dataset.theme || "light");
 
 /* ---------- session ---------- */
 function imageUrl(path) {
-  return window.rmsSupabase.image(path);
+  return typeof path === "string" ? path : "";
 }
 function applyStorefront() {
   const logo = imageUrl(storefront.logo_image) || "logo.svg";
@@ -105,57 +91,49 @@ async function enter(d) {
   role = d.role; me = d.user; info = d; gstRate = d.gst_rate ?? 5;
   storefront = await api("/storefront");
   info.restaurant = storefront.restaurant;
+  info.address = storefront.address || "";
+  info.phone = storefront.phone || "";
+  info.gstin = storefront.gstin || "";
+  gstRate = Number(storefront.gst_rate) || gstRate;
   document.body.dataset.role = role;
   applyStorefront();
   $("#login").hidden = true; $("#app").hidden = false;
-  $("#admin-access").hidden = role !== "customer";
-  $("#admin-close").hidden = true;
-  $("#brand").textContent = storefront.restaurant; $("#uname").textContent = d.user;
+  $("#brand").textContent = storefront.restaurant;
+  $("#uname").textContent = d.user;
   $("#urole").textContent = d.role.charAt(0).toUpperCase() + d.role.slice(1);
-  $("[data-pw]").hidden = d.role === "customer";
   $("#avatar").textContent = d.user.charAt(0).toUpperCase();
+  $("#admin-access").textContent = d.role === "customer" ? "Admin / Staff" : "Sign out";
   $("#date").textContent = new Date().toLocaleDateString("en-IN", {weekday: "short", day: "numeric", month: "short", year: "numeric"});
-  document.title = storefront.restaurant + (role === "customer" ? " · Order online" : " · Management");
-  await subscribeLiveUpdates();
+  document.title = storefront.restaurant + " · Order online";
   tab = "orders"; billDate = todayStr(); render();
-}
-async function login() {
-  if (busy) return; busy = true; $("#go").disabled = true;
-  try {
-    const d = await window.rmsSupabase.login($("#u").value.trim(), $("#p").value);
-    token = "supabase-session"; await enter(d);
-  } catch (e) { toast(e.message, 1); } finally { busy = false; $("#go").disabled = false; }
 }
 async function openStorefront() {
   try {
-    const d = await window.rmsSupabase.openCustomerSession();
-    token = "supabase-session"; await enter(d);
+    window.rmsStatic.signOut();
+    token = "static"; await enter(window.rmsStatic.session());
   } catch (e) {
-    $("#app").hidden = true; $("#login").hidden = false; $("#admin-close").hidden = true;
-    toast(e.message || "Could not connect to Supabase.", 1);
+    toast(e.message || "Could not load this browser's saved data.", 1);
   }
 }
-function showAdminLogin() {
-  token = null;
-  $("#app").hidden = true; $("#login").hidden = false; $("#admin-close").hidden = false;
-  $("#u").focus();
+function showLogin() {
+  $("#app").hidden = true;
+  $("#login").hidden = false;
+  $("#login-hint").textContent = window.rmsStatic.loginHint();
+  $("#login-email").focus();
 }
-$("#admin-access").onclick = showAdminLogin;
-$("#admin-close").onclick = () => { $("#login").hidden = true; $("#p").value = ""; openStorefront(); };
-async function logout() {
-  if (liveChannel) {
-    await window.rmsSupabase.client.removeChannel(liveChannel);
-    liveChannel = null;
+async function signIn(e) {
+  e.preventDefault();
+  try {
+    const d = window.rmsStatic.login($("#login-email").value, $("#login-password").value);
+    token = "static"; await enter(d);
+    $("#login-form").reset();
+  } catch (error) {
+    toast(error.message, 1);
   }
-  try { await window.rmsSupabase.signOut(); }
-  catch (e) { toast(e.message, 1); return; }
-  token = null; selTable = null; closeDialog();
-  $("#app").hidden = true; $("#login").hidden = true; $("#p").value = ""; openStorefront();
 }
-$("#go").onclick = login;
-$("#p").addEventListener("keydown", e => { if (e.key === "Enter") login(); $("#caps").hidden = !e.getModifierState("CapsLock"); });
-$("#u").addEventListener("keydown", e => { if (e.key === "Enter") $("#p").focus(); });
-$("#logout").onclick = logout;
+$("#login-form").addEventListener("submit", signIn);
+$("#login-back").onclick = () => { $("#login").hidden = true; openStorefront(); };
+$("#admin-access").onclick = () => role === "customer" ? showLogin() : openStorefront();
 openStorefront();
 
 setInterval(() => { const c = $("#clock"); if (c) c.textContent = new Date().toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit"}); }, 1000);
@@ -219,7 +197,7 @@ const views = {
         ${customer ? `<div class="sum"><div><span>Subtotal · ${nItems} item${nItems === 1 ? "" : "s"}</span><span>${rs(cur.subtotal)}</span></div>
           <div class="muted"><span>GST ${gstRate}%</span><span>${rs(cur.subtotal * gstRate / 100)}</span></div>
           <div class="tot"><span>Estimated total</span><span>${rs(cur.subtotal * (1 + gstRate / 100))}</span></div>
-          <p class="muted tiny">Your order has been sent to the restaurant.</p></div>` : `<div class="sum" data-sub="${cur.subtotal}">
+          <p class="muted tiny">Saved in this browser only. This order has not been sent to restaurant staff.</p></div>` : `<div class="sum" data-sub="${cur.subtotal}">
           <div><span>Subtotal · ${nItems} item${nItems === 1 ? "" : "s"}</span><span>${rs(cur.subtotal)}</span></div>
           <div class="muted"><span>Discount</span><span id="tdisc">− ${rs(0)}</span></div>
           <div class="muted"><span>GST ${gstRate}%</span><span id="tgst">${rs(cur.subtotal * gstRate / 100)}</span></div>
@@ -332,17 +310,23 @@ const views = {
   },
 
   async settings(v) {
-    const [users, tables, menu] = await Promise.all([api("/users"), api("/tables"), api("/menu")]);
-    const c = storefront.colors || {};
-    const colorInput = (key, label) => `<label class="color-setting"><span>${label}</span><input type="color" id="store-color-${key}" value="${/^#[0-9a-f]{6}$/i.test(c[key] || "") ? c[key] : "#ffffff"}"></label>`;
+    const [accounts, tables, menu] = await Promise.all([api("/users"), api("/tables"), api("/menu")]);
+    const admin = accounts.find(account => account.role === "admin");
+    if (!admin) throw new Error("Admin account was not found.");
+    const colors = storefront.colors || {};
+    const colorInput = (key, label) => `<label class="color-setting"><span>${label}</span><input type="color" id="store-color-${key}" value="${/^#[0-9a-f]{6}$/i.test(colors[key] || "") ? colors[key] : "#ffffff"}"></label>`;
     const uploadTile = (kind, title, image, defaultImage = "") => `<div class="store-upload"><div class="store-thumb">${image || defaultImage ? `<img src="${esc(image || defaultImage)}" alt="">` : "Image preview"}</div>
       <b>${title}</b><label class="upload-button">Choose image<input type="file" accept="image/jpeg,image/png,image/webp" data-store-image="${kind}"></label>
       ${image ? `<button class="sm" data-store-clear="${kind}">Use default</button>` : ""}</div>`;
     v.innerHTML = `<div class="grid2">
       <section class="panel storefront-editor full"><h3>Customer storefront template</h3>
-        <p class="muted tiny">Change your customer-facing brand, banner, food photography and colors. Images can be JPG, PNG or WebP, up to 5 MB each.</p>
+        <p class="muted tiny">Customize the name, banner, photos and colors displayed on the storefront. Uploaded images are compressed and stored in this browser only.</p>
         <div class="grid2 store-copy">
           <div><label for="store-name">Company / restaurant name</label><input id="store-name" maxlength="60" value="${esc(storefront.restaurant || "")}">
+            <label for="store-address">Address</label><input id="store-address" maxlength="180" value="${esc(storefront.address || "")}">
+            <label for="store-phone">Phone</label><input id="store-phone" maxlength="30" value="${esc(storefront.phone || "")}">
+            <label for="store-gstin">GSTIN</label><input id="store-gstin" maxlength="20" value="${esc(storefront.gstin || "")}">
+            <label for="store-gst-rate">GST rate (%)</label><input id="store-gst-rate" type="number" min="0" max="100" step="0.1" value="${Number(storefront.gst_rate ?? 5)}">
             <label for="store-banner-kicker">Banner eyebrow</label><input id="store-banner-kicker" maxlength="50" value="${esc(storefront.banner_kicker || "")}">
             <label for="store-banner-title">Banner heading</label><input id="store-banner-title" maxlength="100" value="${esc(storefront.banner_title || "")}">
             <label for="store-banner-subtitle">Banner message</label><textarea id="store-banner-subtitle" maxlength="240" rows="3">${esc(storefront.banner_subtitle || "")}</textarea></div>
@@ -351,30 +335,37 @@ const views = {
         </div>
         <h3 class="gap">Storefront colors</h3><div class="store-colors">${colorInput("background", "Page background")}${colorInput("surface", "Cards")}${colorInput("header", "Header")}${colorInput("banner", "Banner")}${colorInput("primary", "Buttons")}${colorInput("heading", "Headings")}${colorInput("text", "Body text")}</div>
         <button class="primary block" data-storefront-save>Save storefront design</button></section>
-      <section class="panel storefront-editor full"><h3>Food photos</h3><p class="muted tiny">Upload a custom photo for each menu item. Items without a custom photo keep using the built-in dish image when available.</p>
-        <div class="store-food-grid">${menu.map(m => {
-          const base = m.name.replace(/\s*\(.*?\)\s*/g, "").trim();
-          const photo = imageUrl(storefront.menu_images?.[m.id]) || `images/${slug(base)}.jpg`;
-          return `<div class="store-food"><div class="store-thumb"><img src="${esc(photo)}" alt="" onerror="this.style.display='none'"></div><b>${esc(m.name)}</b>
-            <label class="upload-button">Change photo<input type="file" accept="image/jpeg,image/png,image/webp" data-store-image="menu" data-menu-id="${m.id}"></label>
-            ${storefront.menu_images?.[m.id] ? `<button class="sm" data-store-clear="menu" data-menu-id="${m.id}">Use default photo</button>` : ""}</div>`;
+      <section class="panel storefront-editor full"><h3>Food photos</h3><p class="muted tiny">Change a menu photo or restore its built-in image.</p>
+        <div class="store-food-grid">${menu.map(item => {
+          const base = item.name.replace(/\\s*\\(.*?\\)\\s*/g, "").trim();
+          const photo = imageUrl(storefront.menu_images?.[item.id]) || `images/${slug(base)}.jpg`;
+          return `<div class="store-food"><div class="store-thumb"><img src="${esc(photo)}" alt="" onerror="this.style.display='none'"></div><b>${esc(item.name)}</b>
+            <label class="upload-button">Change photo<input type="file" accept="image/jpeg,image/png,image/webp" data-store-image="menu" data-menu-id="${item.id}"></label>
+            ${storefront.menu_images?.[item.id] ? `<button class="sm" data-store-clear="menu" data-menu-id="${item.id}">Use default photo</button>` : ""}</div>`;
         }).join("")}</div></section>
-      <div class="panel"><h3>User accounts <span class="count">${users.length}</span></h3>
-        <div class="scroll"><table><tr><th>Account</th><th>Email</th><th>Role</th></tr>
-          ${users.map(u => `<tr><td><b>${esc(u.username)}</b>${u.username === me ? ` <small class="muted">(you)</small>` : ""}</td><td>${esc(u.email)}</td>
-          <td><span class="tag ${u.role === "admin" ? "" : "off2"}">${esc(u.role)}</span></td></tr>`).join("")}</table></div>
-        <p class="muted tiny">Create staff accounts in Supabase Dashboard → Authentication → Users. New accounts start as customers. To grant management access, run <code>update public.profiles set role = 'staff' where email = 'staff@example.com';</code> in the SQL Editor. Use <code>admin</code> only for trusted administrators.</p></div>
+      <div class="panel"><h3>User accounts <span class="count">${accounts.length}</span></h3>
+        <div class="scroll"><table><tr><th>Account</th><th>Email</th><th>Role</th><th></th></tr>
+          ${accounts.map(account => `<tr><td><b>${esc(account.username)}</b>${account.username === me ? ` <small class="muted">(you)</small>` : ""}</td><td>${esc(account.email)}</td>
+          <td><span class="tag ${account.role === "admin" ? "" : "off2"}">${esc(account.role)}</span></td><td class="r">${account.role !== "admin" ? `<button class="danger sm" data-user-remove="${esc(account.email)}">Remove</button>` : ""}</td></tr>`).join("")}</table></div>
+        <h3 class="gap">Add account</h3><div class="two"><div><label for="new-username">Username</label><input id="new-username" maxlength="30"></div>
+        <div><label for="new-role">Role</label><select id="new-role"><option value="staff">Staff</option><option value="admin">Admin</option></select></div></div>
+        <label for="new-user-password">Password (min 6)</label><input id="new-user-password" type="password" minlength="6">
+        <button class="primary block" data-user-add>Add account</button>
+        <p class="security-note">Demo credentials are saved in browser storage and are not secure for public admin access.</p></div>
       <div class="panel"><h3>Tables <span class="count">${tables.length}</span></h3>
-        <div class="chips">${tables.map(t => `<span class="chip">T${t.id} · ${t.seats} seats ${t.status === "Free" ? `<button class="x" data-tdel="${t.id}" title="Delete table" aria-label="Delete table ${t.id}">×</button>` : ""}</span>`).join("")}</div>
-        <h3 class="gap">Add table</h3>
-        <label for="ts">Seats</label><input id="ts" type="number" min="1" max="30" value="4">
-        <button class="primary block" data-tadd>Add table</button>
-        <p class="muted tiny">Only free tables with no order history can be deleted.</p></div>
+        <div class="chips">${tables.map(table => `<span class="chip">T${table.id} · ${table.seats} seats <button class="x" data-tdel="${table.id}" title="Delete table" aria-label="Delete table ${table.id}">×</button></span>`).join("")}</div>
+        <h3 class="gap">Add table</h3><label for="ts">Seats</label><input id="ts" type="number" min="1" max="30" value="4">
+        <button class="primary block" data-tadd>Add table</button></div>
       <div class="panel"><h3>Restaurant details</h3>
         <table><tr><td class="muted">Name</td><td>${esc(info.restaurant)}</td></tr><tr><td class="muted">Address</td><td>${esc(info.address) || "—"}</td></tr>
         <tr><td class="muted">Phone</td><td>${esc(info.phone) || "—"}</td></tr><tr><td class="muted">GSTIN</td><td>${esc(info.gstin) || "—"}</td></tr>
-        <tr><td class="muted">GST rate</td><td>${gstRate}%</td></tr></table>
-        <p class="muted tiny">Address, phone and GSTIN are not configured in this browser-only version.</p></div>
+        <tr><td class="muted">GST rate</td><td>${gstRate}%</td></tr></table></div>
+      <div class="panel"><h3>Change administrator sign-in</h3>
+        <label for="admin-email">Admin email</label><input id="admin-email" type="email" value="${esc(admin.email)}" autocomplete="username" required>
+        <label for="admin-current-password">Current password</label><input id="admin-current-password" type="password" autocomplete="current-password" required>
+        <label for="admin-new-password">New password (at least 8 characters)</label><input id="admin-new-password" type="password" minlength="8" autocomplete="new-password" required>
+        <label for="admin-confirm-password">Confirm new password</label><input id="admin-confirm-password" type="password" minlength="8" autocomplete="new-password" required>
+        <button class="primary block" data-admin-creds-save>Save admin sign-in</button></div>
     </div>`;
   }
 };
@@ -427,22 +418,36 @@ document.addEventListener("focusout", () => setTimeout(resumeLiveRefresh, 0));
 document.addEventListener("change", e => {
   if (e.target.id === "bd") { billDate = e.target.value; render(); }
   if (e.target.matches("[data-store-image]") && e.target.files?.[0]) {
-    const input = e.target, file = input.files[0], kind = input.dataset.storeImage;
+    const input = e.target, file = input.files[0];
     act(async () => {
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Choose a JPG, PNG or WebP image");
-      if (file.size > 5 * 1024 * 1024) throw new Error("Image must be 5 MB or smaller");
-      const dataUrl = await new Promise((resolve, reject) => {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Choose a JPG, PNG or WebP image.");
+      if (file.size > 5 * 1024 * 1024) throw new Error("Choose an image smaller than 5 MB.");
+      const data = await new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("Could not read the selected image"));
+        reader.onerror = () => reject(new Error("Could not read the selected image."));
+        reader.onload = () => {
+          const image = new Image();
+          image.onerror = () => reject(new Error("The selected image could not be decoded."));
+          image.onload = () => {
+            const scale = Math.min(1, 1200 / Math.max(image.width, image.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.round(image.width * scale);
+            canvas.height = Math.round(image.height * scale);
+            canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.72));
+          };
+          image.src = String(reader.result);
+        };
         reader.readAsDataURL(file);
       });
-      const result = await window.rmsSupabase.uploadImage({
-        kind, menu_id: kind === "menu" ? input.dataset.menuId : undefined,
-        mime: file.type, data: dataUrl.split(",", 2)[1]
+      storefront = await api("/storefront/image", {
+        kind: input.dataset.storeImage,
+        menu_id: input.dataset.menuId,
+        data
       });
-      storefront = result.storefront; info.restaurant = storefront.restaurant; applyStorefront();
-    }, "Image uploaded");
+      info.restaurant = storefront.restaurant;
+      applyStorefront();
+    }, "Image saved in this browser");
   }
 });
 document.addEventListener("keydown", e => {
@@ -460,14 +465,29 @@ async function downloadCsv() {
 
 document.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return; const d = b.dataset;
-  if (d.eye !== undefined) { const p = $("#p"); p.type = p.type === "password" ? "text" : "password"; b.textContent = p.type === "password" ? "Show" : "Hide"; }
-  else if (d.themeBtn !== undefined) setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+  if (d.themeBtn !== undefined) setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
   else if (d.close !== undefined) closeDialog();
-  else if (d.pw !== undefined) pwDialog();
-  else if (d.pwsave !== undefined) act(async () => {
-    if ($("#pn").value !== $("#pc").value) throw new Error("New passwords do not match");
-    await window.rmsSupabase.changePassword($("#pn").value); closeDialog();
-  }, "Password updated");
+  else if (d.loginEye !== undefined) {
+    const password = $("#login-password");
+    password.type = password.type === "password" ? "text" : "password";
+    b.textContent = password.type === "password" ? "Show" : "Hide";
+  }
+  else if (d.adminCredsSave !== undefined) act(async () => {
+    if ($("#admin-new-password").value !== $("#admin-confirm-password").value) throw new Error("New passwords do not match.");
+    await api("/auth/credentials/update", {
+      email: $("#admin-email").value,
+      current_password: $("#admin-current-password").value,
+      password: $("#admin-new-password").value
+    });
+  }, "Admin sign-in updated");
+  else if (d.userAdd !== undefined) act(() => api("/users/add", {
+    username: $("#new-username").value,
+    role: $("#new-role").value,
+    password: $("#new-user-password").value
+  }), "Account added");
+  else if (d.userRemove) {
+    if (confirm("Remove this staff account?")) act(() => api("/users/remove", {email: d.userRemove}), "Account removed");
+  }
   else if (d.tab) { tab = d.tab; render(); }
   else if (d.table) { selTable = +d.table; render(); }
   else if (d.cat) { cat = d.cat; render(); }
@@ -495,17 +515,23 @@ document.addEventListener("click", e => {
       .map(key => [key, $("#store-color-" + key).value]));
     storefront = await api("/storefront", {
       restaurant: $("#store-name").value,
+      address: $("#store-address").value,
+      phone: $("#store-phone").value,
+      gstin: $("#store-gstin").value,
+      gst_rate: $("#store-gst-rate").value,
       banner_kicker: $("#store-banner-kicker").value,
       banner_title: $("#store-banner-title").value,
       banner_subtitle: $("#store-banner-subtitle").value,
       colors
     });
-    info.restaurant = storefront.restaurant; applyStorefront();
+    info.restaurant = storefront.restaurant; info.address = storefront.address; info.phone = storefront.phone;
+    info.gstin = storefront.gstin; gstRate = Number(storefront.gst_rate) || 5; applyStorefront();
   }, "Storefront design saved");
   else if (d.storeClear) act(async () => {
-    storefront = await window.rmsSupabase.removeImage(
-      d.storeClear, d.storeClear === "menu" ? d.menuId : undefined
-    );
-    info.restaurant = storefront.restaurant; applyStorefront();
+    storefront = await api("/storefront/image/remove", {
+      kind: d.storeClear,
+      menu_id: d.menuId
+    });
+    applyStorefront();
   }, "Default image restored");
 });
