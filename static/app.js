@@ -164,7 +164,7 @@ const views = {
       bannerTitle === "What are you craving?" &&
       bannerSubtitle === "Choose your table, pick your favourites, and we’ll take care of the rest.";
     const bannerBackground = bannerImage ? `background-image:url('${bannerImage}')` :
-      bannerArtwork ? "background-image:url('images/customer-banner.png?v=6')" : "";
+      bannerArtwork ? "background-image:url('images/customer-banner.png?v=7')" : "";
     const [tables, menu, orders] = await Promise.all([api("/tables"), api("/menu"), api("/orders")]);
     const byTable = Object.fromEntries(orders.map(o => [o.table_id, o]));
     const cur = byTable[selTable];
