@@ -180,7 +180,7 @@ const views = {
       const base = m.name.replace(/\s*\(.*?\)\s*/g, "").trim(), size = (m.name.match(/\((.*?)\)/) || [])[1], l = look(m);
       return `<article class="dish" data-name="${esc(m.name.toLowerCase())}">
         <div class="ph" style="background:${l.bg}"><span>${l.e}</span>
-          ${noImg.has(slug(base)) ? "" : `<img loading="lazy" src="${esc(imageUrl(storefront.menu_images?.[m.id]) || `images/${slug(base)}.jpg`)}" alt="${esc(base)}" onerror="noImg.add('${slug(base)}');this.remove()">`}
+          ${noImg.has(slug(base)) ? "" : `<img loading="lazy" src="${esc(imageUrl(storefront.menu_images?.[m.id]) || `images/${slug(base)}.${m.category === "Pasta" ? "svg" : "jpg"}`)}" alt="${esc(base)}" onerror="noImg.add('${slug(base)}');this.remove()">`}
           ${size ? `<em class="size">${esc(size)}</em>` : ""}
           <i class="vn ${isVeg(m) ? "veg" : "nonveg"}" title="${isVeg(m) ? "Vegetarian" : "Non-vegetarian"}"></i></div>
         <div class="info"><h4>${esc(base)}</h4><small>${esc(m.category)}</small>

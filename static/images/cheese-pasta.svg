@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" role="img" aria-labelledby="title">
+  <title id="title">Cheese pasta</title>
+  <defs>
+    <linearGradient id="table" x2="0" y2="1"><stop stop-color="#483025"/><stop offset="1" stop-color="#211a17"/></linearGradient>
+    <radialGradient id="plate"><stop stop-color="#fffdf5"/><stop offset=".84" stop-color="#eee5d5"/><stop offset=".9" stop-color="#d0c4ae"/><stop offset="1" stop-color="#f5efdf"/></radialGradient>
+    <linearGradient id="sauce" x2=".8" y2="1"><stop stop-color="#ffd579"/><stop offset=".48" stop-color="#edae48"/><stop offset="1" stop-color="#c77a2a"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <path fill="url(#table)" d="M0 0h960v640H0z"/>
+  <ellipse cx="480" cy="372" rx="355" ry="205" fill="#100c0a" opacity=".65" filter="url(#shadow)"/>
+  <ellipse cx="480" cy="320" rx="375" ry="250" fill="url(#plate)"/>
+  <ellipse cx="480" cy="317" rx="306" ry="188" fill="#d5c8b2"/>
+  <ellipse cx="480" cy="303" rx="292" ry="174" fill="url(#sauce)"/>
+  <g fill="none" stroke="#ffe09a" stroke-width="22" stroke-linecap="round">
+    <path d="M247 291c16-83 117-99 146-28s-60 112-106 60 50-119 123-68 20 125-47 108"/>
+    <path d="M395 250c25-77 129-70 143 5s-84 99-119 38 67-106 132-46 4 122-65 101"/>
+    <path d="M554 253c36-67 132-45 131 32s-96 81-121 15 81-92 135-24 4 114-65 84"/>
+    <path d="M283 370c38-70 132-46 128 31s-98 77-120 11 84-89 136-20-1 113-68 81"/>
+    <path d="M438 374c33-72 130-54 134 22s-92 87-119 23 78-97 135-32 12 115-58 92"/>
+    <path d="M584 355c24-65 111-61 124 5s-67 91-105 39 48-97 106-57 31 98-27 97"/>
+  </g>
+  <g fill="#fff5d5" opacity=".95">
+    <path d="m354 226 55-19-16 36-50 8z"/><path d="m516 214 57-15-22 33-51 7z"/>
+    <path d="m660 288 49-20-14 37-45 10z"/><path d="m300 330 48-11-22 33-42 1z"/>
+    <path d="m458 324 55-16-20 35-47 3z"/><path d="m562 408 55-18-19 37-47 1z"/>
+    <path d="m400 414 43-15-11 31-40 7z"/>
+  </g>
+  <g fill="#427b3e"><ellipse cx="361" cy="307" rx="9" ry="5" transform="rotate(-35 361 307)"/><ellipse cx="626" cy="319" rx="10" ry="5" transform="rotate(25 626 319)"/><ellipse cx="466" cy="265" rx="8" ry="4" transform="rotate(-18 466 265)"/><ellipse cx="341" cy="385" rx="9" ry="4" transform="rotate(30 341 385)"/><ellipse cx="542" cy="353" rx="10" ry="5" transform="rotate(-28 542 353)"/></g>
+</svg>

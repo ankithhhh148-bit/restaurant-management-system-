@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" role="img" aria-labelledby="title">
+  <title id="title">Tomato pasta</title>
+  <defs>
+    <linearGradient id="table" x2="0" y2="1"><stop stop-color="#dfc8a7"/><stop offset="1" stop-color="#80614a"/></linearGradient>
+    <radialGradient id="plate"><stop stop-color="#fffef9"/><stop offset=".83" stop-color="#f5f1e8"/><stop offset=".91" stop-color="#d8d0c1"/><stop offset="1" stop-color="#fffdf5"/></radialGradient>
+    <linearGradient id="tomato" x2=".8" y2="1"><stop stop-color="#ed7651"/><stop offset=".55" stop-color="#c93f2d"/><stop offset="1" stop-color="#8f241e"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <path fill="url(#table)" d="M0 0h960v640H0z"/>
+  <path fill="#f2e4cf" opacity=".22" d="M0 90h960v12H0zm0 442h960v9H0z"/>
+  <ellipse cx="480" cy="375" rx="354" ry="200" fill="#34241a" opacity=".55" filter="url(#shadow)"/>
+  <ellipse cx="480" cy="319" rx="375" ry="250" fill="url(#plate)"/>
+  <ellipse cx="480" cy="315" rx="304" ry="188" fill="#cfc2af"/>
+  <ellipse cx="480" cy="300" rx="290" ry="173" fill="url(#tomato)"/>
+  <g fill="#dc4d34" stroke="#ff9366" stroke-width="5">
+    <path d="M266 283 300 255l48 9 20 32-24 34-48 1z"/><path d="m371 231 44-27 42 19 11 35-34 29-47-15z"/>
+    <path d="m489 246 39-33 46 12 15 34-29 33-48-8z"/><path d="m611 276 44-22 37 24 2 37-39 22-40-24z"/>
+    <path d="m300 365 42-25 41 19 9 37-33 28-48-14z"/><path d="m429 357 43-31 43 15 10 39-36 30-45-17z"/>
+    <path d="m548 378 42-31 45 16 9 39-37 28-46-15z"/>
+  </g>
+  <g fill="none" stroke="#f7bd79" stroke-width="12" stroke-linecap="round">
+    <path d="M247 311c58-77 117 52 176-10s106-64 150 2 95 36 143-21"/>
+    <path d="M266 357c66-63 107 50 171 6s106-55 158 0 92 21 135-25"/>
+    <path d="M320 249c41 35 75 40 114-5s80-39 110 7 66 40 102 7"/>
+    <path d="M338 398c42-30 83-37 117-3s78 40 113 2 72-29 102-4"/>
+  </g>
+  <g fill="#488043">
+    <path d="M349 272c-35-31-63-25-70 7 28 13 51 11 70-7zm160-56c-27-32-57-35-74-8 21 20 45 23 74 8zm134 100c25-34 52-41 73-17-17 23-41 30-73 17zm-130 63c32-25 60-22 71 8-25 14-49 11-71-8zm-168 5c-22-32-48-39-70-17 16 24 38 31 70 17z"/>
+  </g>
+  <g fill="#fff3dc"><path d="m407 253 36-15-11 26-33 3z"/><path d="m572 316 38-13-14 26-33 1z"/><path d="m472 384 35-16-10 27-33 2z"/></g>
+</svg>
