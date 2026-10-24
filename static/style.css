@@ -200,7 +200,7 @@ body[data-role=customer] .topbar{position:static;background:transparent;border:0
 body[data-role=customer] .topbar h2{font-size:1.7rem;font-weight:800;letter-spacing:-.04em;color:var(--store-heading,#b91018)}
 body[data-role=customer] main{max-width:none;padding:16px 28px 56px}
 body[data-role=customer] .customer-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:180px;margin-bottom:22px;padding:24px 32px;border:1px solid var(--brand-b,#b18b31);border-radius:18px;background:radial-gradient(circle at 88% 25%,rgba(255,255,255,.2) 0 8%,transparent 8.5%),linear-gradient(112deg,color-mix(in srgb,var(--store-banner,#d0ac49) 72%,white),var(--store-banner,#d0ac49) 58%,color-mix(in srgb,var(--store-banner,#d0ac49) 72%,#614512));background-size:cover;background-position:center;color:var(--store-heading,#8f1b24);overflow:hidden;box-shadow:0 10px 24px rgba(108,77,20,.15)}
-body[data-role=customer] .customer-hero.banner-artwork{width:100%;min-height:0;padding:0;aspect-ratio:1494/184;background-size:100% 100%;background-position:center}
+body[data-role=customer] .customer-hero.banner-artwork{width:100%;min-height:0;padding:0;aspect-ratio:1494/260;background-size:100% 100%;background-position:center}
 body[data-role=customer] .customer-hero.banner-artwork>div{display:none}
 body[data-role=customer] .customer-hero .eyebrow,body[data-role=customer] .customer-menu-head .eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.14em}
 body[data-role=customer] .customer-hero h2,body[data-role=customer] .customer-menu-head h2{font-size:clamp(1.5rem,3vw,2.3rem);font-weight:800;letter-spacing:-.04em;margin:8px 0}

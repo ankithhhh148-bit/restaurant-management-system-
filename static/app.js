@@ -71,7 +71,7 @@ function imageUrl(path) {
   return typeof path === "string" ? path : "";
 }
 function applyStorefront() {
-  const logo = imageUrl(storefront.logo_image) || "logo.svg";
+  const logo = imageUrl(storefront.logo_image) || "images/golden-spoon-logo.png";
   document.querySelectorAll(".brandrow .logo").forEach(img => { img.src = logo; });
   if (role !== "customer") {
     for (const variable of ["--bg", "--surface", "--navy", "--brand", "--txt", "--store-heading", "--store-banner"]) {
@@ -164,7 +164,7 @@ const views = {
       bannerTitle === "What are you craving?" &&
       bannerSubtitle === "Choose your table, pick your favourites, and we’ll take care of the rest.";
     const bannerBackground = bannerImage ? `background-image:url('${bannerImage}')` :
-      bannerArtwork ? "background-image:url('images/customer-banner.png?v=3')" : "";
+      bannerArtwork ? "background-image:url('images/customer-banner.png?v=4')" : "";
     const [tables, menu, orders] = await Promise.all([api("/tables"), api("/menu"), api("/orders")]);
     const byTable = Object.fromEntries(orders.map(o => [o.table_id, o]));
     const cur = byTable[selTable];
@@ -180,7 +180,7 @@ const views = {
       const base = m.name.replace(/\s*\(.*?\)\s*/g, "").trim(), size = (m.name.match(/\((.*?)\)/) || [])[1], l = look(m);
       return `<article class="dish" data-name="${esc(m.name.toLowerCase())}">
         <div class="ph" style="background:${l.bg}"><span>${l.e}</span>
-          ${noImg.has(slug(base)) ? "" : `<img loading="lazy" src="${esc(imageUrl(storefront.menu_images?.[m.id]) || `images/${slug(base)}.${m.category === "Pasta" ? "svg" : "jpg"}`)}" alt="${esc(base)}" onerror="noImg.add('${slug(base)}');this.remove()">`}
+          ${noImg.has(slug(base)) ? "" : `<img loading="lazy" src="${esc(imageUrl(storefront.menu_images?.[m.id]) || `images/${slug(base)}.jpg`)}" alt="${esc(base)}" onerror="noImg.add('${slug(base)}');this.remove()">`}
           ${size ? `<em class="size">${esc(size)}</em>` : ""}
           <i class="vn ${isVeg(m) ? "veg" : "nonveg"}" title="${isVeg(m) ? "Vegetarian" : "Non-vegetarian"}"></i></div>
         <div class="info"><h4>${esc(base)}</h4><small>${esc(m.category)}</small>
